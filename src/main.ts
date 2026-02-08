@@ -1,11 +1,15 @@
-import { createServer } from "node:http";
+import { HttpServer } from "./http/server";
 
-const server = createServer((req, res) => {
-  res.statusCode = 200;
-  res.setHeader("content-type", "text/plain; charset=utf-8");
-  res.end("hello mini-nest\n");
+const app = new HttpServer();
+const router = app.getRouter();
+
+router.add("GET", "/health", (_req, res) => {
+  res.json({ok: true});
 });
 
-server.listen(3000, () => {
-  console.log("listening on http://localhost:3000");
+router.add("GET", "/users/:id", (req, res) => {
+  res.json({ id: req.params.id, query: req.query });
 });
+
+await app.listen(3000);
+console.log("listening on http://localhost:3000");
