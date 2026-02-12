@@ -1,11 +1,12 @@
 // src/http/server.ts
 import { createServer } from "node:http";
 import { Router } from "./router";
-import { compose, type Middleware } from "./middleware";
+import { compose, type Middleware, type ErrorMiddleware } from "./middleware";
 
 export class HttpServer {
   private router = new Router();
   private middlewares: Middleware[] = [];
+  private errorMiddlewares: ErrorMiddleware[] = [];
 
   getRouter() {
     return this.router;
@@ -13,6 +14,11 @@ export class HttpServer {
 
   use(mw: Middleware) {
     this.middlewares.push(mw);
+    return this;
+  }
+
+  useError(mw: ErrorMiddleware) {
+    this.errorMiddlewares.push(mw);
     return this;
   }
 
@@ -48,32 +54,33 @@ export class HttpServer {
         },
       };
 
+      const terminalRouter: Middleware = async (_req, _res, next) => {
+        const ok = await this.router.handle(request, response);
+        if (!ok) {
+          res.statusCode = 404;
+          res.setHeader("content-type", "text/plain; charset=utf-8");
+          res.end("Not Found");
+        }
+        next();
+      };
+
+      // 通常MW → router → errorMW の順に 1本のパイプラインへ
       const fn = compose([
         ...this.middlewares,
-        async (_req, _res, next) => {
-          // 最後に router を呼ぶ middleware（終端）
-          const ok = await this.router.handle(request, response);
-          if (!ok) {
-            res.statusCode = 404;
-            res.setHeader("content-type", "text/plain; charset=utf-8");
-            res.end("Not Found");
-          }
-          next(); // ここまで来たらチェーン終了
-        },
+        terminalRouter,
+        ...this.errorMiddlewares,
       ]);
 
-      // エラーはここでまとめて 500 にする（後で middleware 化する）
-      try {
-        // ここで渡す第3引数がoutNext
-        await fn(request, response, (err) => {
-          if (err) throw err;
-        });
-      } catch (e) {
+      // outNext: 最後まで流れたのに未処理の err が残ったらここに来る
+      await fn(request, response, (err) => {
+        if (!err) return;
+
+        // フォールバック
         res.statusCode = 500;
         res.setHeader("content-type", "text/plain; charset=utf-8");
         res.end("Internal Server Error");
-        console.error(e);
-      }
+        console.error(err);
+      });
     });
 
     return new Promise<void>((resolve) => server.listen(port, resolve));
