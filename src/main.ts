@@ -1,3 +1,5 @@
+import { jsonBodyParser } from "./http/body";
+import { HttpError } from "./http/error";
 import { HttpServer } from "./http/server";
 
 const app = new HttpServer();
@@ -10,7 +12,15 @@ app.use(async (req, _res, next) => {
   console.log(`${req.method} ${req.path} ${ms}ms` )
 })
 
-app.useError((err, _req, res, _next) => {
+app.use(jsonBodyParser({limitBytes: 1024 * 1024}))
+
+app.useError((err, req, res, _next) => {
+  if(err instanceof HttpError) {
+    return res.status(err.status).json({
+      message: err.message,
+      path: req.path,
+    })
+  }
   console.error("caugnt by error middleware:", err);
   res.status(500).json({
     message: "Internal server error",
@@ -28,6 +38,11 @@ router.add("GET", "/boom", (_req, _res) => {
 
 router.add("GET", "/users/:id", (req, res) => {
   res.json({ id: req.params.id, query: req.query });
+});
+
+// ★ POST /echo: body をそのまま返す
+router.add("POST", "/echo", (req, res) => {
+  res.json({ body: req.body });
 });
 
 await app.listen(3000);

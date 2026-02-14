@@ -32,6 +32,7 @@ export class HttpServer {
         query: Object.fromEntries(url.searchParams.entries()),
         headers: req.headers,
         params: {} as Record<string, string>,
+        body: undefined as any,
         raw: req,
       };
 
