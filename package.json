@@ -5,10 +5,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "start": "tsx src/main.ts",
+    "dev": "pnpm -s build && sh -c 'pnpm -s dev:tsc & pnpm -s dev:node'",
+    "dev:tsc": "tsc -w --preserveWatchOutput",
+    "dev:node": "pnpm -s exec tsx watch dist/main.js",
+    "start": "pnpm -s build && pnpm -s start:dist",
     "build": "tsc",
-    "start:dist": "node dist/main.js"
+    "start:dist": "pnpm -s exec tsx dist/main.js"
   },
   "keywords": [],
   "author": "",

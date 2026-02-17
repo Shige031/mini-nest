@@ -1,9 +1,11 @@
 import "reflect-metadata";
+import type { Constructor } from "./container";
 
 export const META = {
   controllerPath: Symbol("controllerPath"),
   routes: Symbol("routes"),
   module: Symbol("module"),
+  injectable: Symbol("injectable")
 };
 
 export type RouteDef = {
@@ -35,13 +37,21 @@ function createMethodDecorator(method: string) {
 export const Get = createMethodDecorator("GET");
 export const Post = createMethodDecorator("POST");
 
+
+export function Injectable(): ClassDecorator {
+  return (target) => {
+    Reflect.defineMetadata(META.injectable, true, target)
+  }
+}
+
 export type ModuleMeta = {
-  controllers?: Function[];
+  controllers?: Constructor[];
+  providers?: Constructor[];
 };
+
 
 export function Module(meta: ModuleMeta): ClassDecorator {
   return (target) => {
     Reflect.defineMetadata(META.module, meta, target);
   };
 }
-

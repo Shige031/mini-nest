@@ -1,9 +1,31 @@
 // src/main.ts
 import "reflect-metadata";
-import { Module, Controller, Get, Post } from "./core/decorators";
+import { Module, Controller, Get, Post, Injectable } from "./core/decorators";
 import { MiniNestFactory } from "./core/factory";
 import { jsonBodyParser } from "./http/body";
 import { HttpError } from "./http/error";
+
+@Injectable()
+class UserService {
+  find(id: string) {
+    return { id, name: "Taro" };
+  }
+}
+
+@Controller("/users")
+class UserController {
+  constructor(private readonly userService: UserService) {}
+
+  @Get("/:id")
+  getUser(req: any, res: any) {
+    res.json({ user: this.userService.find(req.params.id), query: req.query });
+  }
+
+  @Post("/echo")
+  echo(req: any, res: any) {
+    res.json({ body: req.body });
+  }
+}
 
 @Controller("/health")
 class HealthController {
@@ -13,34 +35,22 @@ class HealthController {
   }
 }
 
-@Controller("/users")
-class UserController {
-  @Get("/:id")
-  getUser(req: any, res: any) {
-    res.json({ id: req.params.id, query: req.query });
-  }
-
-  @Post("/echo")
-  echo(req: any, res: any) {
-    res.json({ body: req.body });
-  }
-}
-
 @Module({
   controllers: [HealthController, UserController],
+  providers: [UserService],
 })
 class AppModule {}
 
 const app = await MiniNestFactory.create(AppModule);
 
-// logger（前回のまま）
+// logger
 app.use(async (req, _res, next) => {
   const start = Date.now();
   await next();
   console.log(`${req.method} ${req.path} (${Date.now() - start}ms)`);
 });
 
-// JSON body parser
+// body parser
 app.use(jsonBodyParser({ limitBytes: 1024 * 1024 }));
 
 // error handler
