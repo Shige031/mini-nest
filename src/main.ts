@@ -4,6 +4,7 @@ import { Module, Controller, Get, Post, Injectable, Inject } from "./core/decora
 import { MiniNestFactory } from "./core/factory";
 import { jsonBodyParser } from "./http/body";
 import { HttpError } from "./http/error";
+import type { ExecutionContext } from "./core/execution-context";
 
 const LOGGER = Symbol("LOGGER");
 
@@ -32,12 +33,19 @@ class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get("/:id")
-  getUser(req: any, res: any) {
+  getUser(context: ExecutionContext) {
+    const http = context.switchToHttp();
+    const req = http.getRequest();
+    const res = http.getResponse();
+
     res.json({ user: this.userService.find(req.params.id), query: req.query });
   }
 
   @Post("/echo")
-  echo(req: any, res: any) {
+  echo(context: ExecutionContext) {
+    const http = context.switchToHttp();
+    const req = http.getRequest();
+    const res = http.getResponse();
     res.json({ body: req.body });
   }
 }
@@ -45,7 +53,9 @@ class UserController {
 @Controller("/health")
 class HealthController {
   @Get("")
-  get(_req: any, res: any) {
+  get(context: ExecutionContext) {
+    const http = context.switchToHttp();
+    const res = http.getResponse();
     res.json({ ok: true });
   }
 }

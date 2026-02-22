@@ -3,6 +3,7 @@ import { META, type RouteDef } from "./decorators";
 import { scanModule } from "./scanner";
 import { HttpServer } from "../http/server";
 import { Container, type Constructor } from "./container";
+import { ExecutionContext } from "./execution-context";
 
 function normalize(path: string) {
   if (!path.startsWith("/")) path = "/" + path;
@@ -29,7 +30,10 @@ export class MiniNestFactory {
 
       for (const r of routes) {
         const fullPath = normalize(`${basePath}${r.path}`);
-        router.add(r.method, fullPath, (req, res) => instance[r.handlerName](req,res));
+        router.add(r.method, fullPath, (req, res) => {
+          const context = new ExecutionContext("http", [req, res]);
+          return instance[r.handlerName](context);
+        });
       }
     }
 
