@@ -4,6 +4,7 @@ import { scanModule } from "./scanner";
 import { HttpServer } from "../http/server";
 import { Container, type Constructor } from "./container";
 import { ExecutionContext } from "./execution-context";
+import { resolveHandlerArgs } from "./arg-resolver";
 
 function normalize(path: string) {
   if (!path.startsWith("/")) path = "/" + path;
@@ -31,8 +32,9 @@ export class MiniNestFactory {
       for (const r of routes) {
         const fullPath = normalize(`${basePath}${r.path}`);
         router.add(r.method, fullPath, (req, res) => {
-          const context = new ExecutionContext("http", [req, res]);
-          return instance[r.handlerName](context);
+          const ctx = new ExecutionContext("http", [req, res]);
+          const args = resolveHandlerArgs(c, r.handlerName, ctx);
+          return instance[r.handlerName](...args);
         });
       }
     }

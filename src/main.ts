@@ -5,6 +5,7 @@ import { MiniNestFactory } from "./core/factory";
 import { jsonBodyParser } from "./http/body";
 import { HttpError } from "./http/error";
 import type { ExecutionContext } from "./core/execution-context";
+import { Param, Query, Body, Res } from "./core/decorators";
 
 const LOGGER = Symbol("LOGGER");
 
@@ -33,20 +34,21 @@ class UserController {
   constructor(private readonly userService: UserService) {}
 
   @Get("/:id")
-  getUser(context: ExecutionContext) {
-    const http = context.switchToHttp();
-    const req = http.getRequest();
-    const res = http.getResponse();
-
-    res.json({ user: this.userService.find(req.params.id), query: req.query });
+  @Get("/:id")
+  getUser(
+    @Param("id") id: string,
+    @Query("x") x: string,
+    @Res() res: any,
+  ) {
+    res.json({
+      user: this.userService.find(id),
+      x,
+    });
   }
 
   @Post("/echo")
-  echo(context: ExecutionContext) {
-    const http = context.switchToHttp();
-    const req = http.getRequest();
-    const res = http.getResponse();
-    res.json({ body: req.body });
+  echo(@Body() body: any, @Res() res: any) {
+    res.json({ body });
   }
 }
 
