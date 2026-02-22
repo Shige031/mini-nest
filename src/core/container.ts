@@ -4,35 +4,65 @@ import { META } from "./decorators";
 
 export type Constructor<T = any> = new (...args: any[]) => T;
 
+export type Provider = Constructor | {
+  provide: any,
+  useClass?: Constructor;
+  useValue?: any;
+  useFactory?: () => any;
+}
+
 export class Container {
-  private providers = new Set<Constructor>();
+  private providerMap = new Map<any, Provider>();
   private singletons = new Map<Constructor, any>();
 
-  register<T>(token: Constructor<T>) {
-    this.providers.add(token);
+  register(provider: Provider) {
+    if (typeof provider === "function") {
+      this.providerMap.set(provider, provider);
+    } else {
+      this.providerMap.set(provider.provide, provider);
+    }
   }
 
-  resolve<T>(token: Constructor<T>): T {
-    const name = (token as any)?.name ?? "<anonymous>";
-
+  resolve<T>(token: any): T {
     if (this.singletons.has(token)) {
       return this.singletons.get(token);
     }
 
-    const injectable = Reflect.getMetadata(META.injectable, token);
-    const registered = this.providers.has(token);
-
-    if (!injectable && !registered) {
-      throw new Error(`Not injectable / not registered: ${name}`);
+    const provider = this.providerMap.get(token);
+    if (!provider) {
+      throw new Error(`No provider for token: ${token.toString()}`);
     }
 
-    const paramTypes: Constructor[] =
-      Reflect.getMetadata("design:paramtypes", token) ?? [];
+    let instance;
 
-    const deps = paramTypes.map((dep) => this.resolve(dep));
-    const instance = new token(...deps);
+    if (typeof provider === "function") {
+      instance = this.instantiate(provider);
+    } else if (provider.useValue !== undefined) {
+      instance = provider.useValue;
+    } else if (provider.useFactory) {
+      instance = provider.useFactory();
+    } else if (provider.useClass) {
+      instance = this.instantiate(provider.useClass);
+    } else {
+      throw new Error("Invalid provider config");
+    }
+
     this.singletons.set(token, instance);
-
     return instance;
+  }
+
+  private instantiate(target: any) {
+    const paramTypes: any[] =
+      Reflect.getMetadata("design:paramtypes", target) ?? [];
+
+    const injectTokens =
+      Reflect.getMetadata(META.injectTokens, target) ?? {};
+
+    const deps = paramTypes.map((type, index) => {
+      const token = injectTokens[index] ?? type;
+      return this.resolve(token);
+    });
+
+    return new target(...deps);
   }
 }

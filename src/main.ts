@@ -1,13 +1,28 @@
 // src/main.ts
 import "reflect-metadata";
-import { Module, Controller, Get, Post, Injectable } from "./core/decorators";
+import { Module, Controller, Get, Post, Injectable, Inject } from "./core/decorators";
 import { MiniNestFactory } from "./core/factory";
 import { jsonBodyParser } from "./http/body";
 import { HttpError } from "./http/error";
 
+const LOGGER = Symbol("LOGGER");
+
+interface Logger {
+  log(message: string): void;
+}
+
+@Injectable()
+class ConsoleLogger implements Logger {
+  log(message: string) {
+    console.log("LOG:", message);
+  }
+}
+
 @Injectable()
 class UserService {
+  constructor(@Inject(LOGGER) private logger: Logger) {}
   find(id: string) {
+    this.logger.log(`finding user ${id}`);
     return { id, name: "Taro" };
   }
 }
@@ -37,7 +52,7 @@ class HealthController {
 
 @Module({
   controllers: [HealthController, UserController],
-  providers: [UserService],
+  providers: [UserService, {provide: LOGGER, useClass: ConsoleLogger}],
 })
 class AppModule {}
 
