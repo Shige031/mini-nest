@@ -1,11 +1,12 @@
 // src/main.ts
 import "reflect-metadata";
-import { Module, Controller, Get, Post, Injectable, Inject } from "./core/decorators";
+import { Module, Controller, Get, Post, Injectable, Inject, UseGuards } from "./core/decorators";
 import { MiniNestFactory } from "./core/factory";
 import { jsonBodyParser } from "./http/body";
 import { HttpError } from "./http/error";
 import type { ExecutionContext } from "./core/execution-context";
-import { Param, Query, Body, Res } from "./core/decorators";
+import { Param, Body, Res } from "./core/decorators";
+import type { CanActivate } from "./core/guard";
 
 const LOGGER = Symbol("LOGGER");
 
@@ -29,20 +30,26 @@ class UserService {
   }
 }
 
+@Injectable()
+class AuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const req = context.switchToHttp().getRequest();
+    return req.headers["x-auth"] === "1";
+  }
+}
+
 @Controller("/users")
 class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Get("/:id")
+  @UseGuards(AuthGuard)
   @Get("/:id")
   getUser(
     @Param("id") id: string,
-    @Query("x") x: string,
     @Res() res: any,
   ) {
     res.json({
       user: this.userService.find(id),
-      x,
     });
   }
 
@@ -64,7 +71,11 @@ class HealthController {
 
 @Module({
   controllers: [HealthController, UserController],
-  providers: [UserService, {provide: LOGGER, useClass: ConsoleLogger}],
+  providers: [
+    UserService,
+    AuthGuard,
+    { provide: LOGGER, useClass: ConsoleLogger },
+  ],
 })
 class AppModule {}
 

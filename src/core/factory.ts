@@ -5,6 +5,7 @@ import { HttpServer } from "../http/server";
 import { Container, type Constructor } from "./container";
 import { ExecutionContext } from "./execution-context";
 import { resolveHandlerArgs } from "./arg-resolver";
+import type { CanActivate } from "./guard";
 
 function normalize(path: string) {
   if (!path.startsWith("/")) path = "/" + path;
@@ -31,8 +32,21 @@ export class MiniNestFactory {
 
       for (const r of routes) {
         const fullPath = normalize(`${basePath}${r.path}`);
-        router.add(r.method, fullPath, (req, res) => {
+        router.add(r.method, fullPath, async (req, res) => {
           const ctx = new ExecutionContext("http", [req, res]);
+          const allGuards = Reflect.getMetadata(META.guards, c) ?? {};
+          const guards = allGuards[r.handlerName] ?? [];
+
+          for (const GuardClass of guards) {
+            const guardInstance = container.resolve<CanActivate>(GuardClass);
+            const result = await guardInstance.canActivate(ctx);
+
+            if (!result) {
+              res.status(403).json({ message: "Forbidden" });
+              return;
+            }
+          }
+
           const args = resolveHandlerArgs(c, r.handlerName, ctx);
           return instance[r.handlerName](...args);
         });

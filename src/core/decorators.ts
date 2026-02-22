@@ -8,6 +8,7 @@ export const META = {
   injectable: Symbol("injectable"),
   injectTokens: Symbol("injectTokens"),
   routeArgs: Symbol("routeArgs"),
+  guards: Symbol("guards"),
 };
 
 export type RouteDef = {
@@ -127,5 +128,17 @@ export function Res(): ParameterDecorator {
 export function Ctx(): ParameterDecorator {
   return (target, propertyKey, parameterIndex) => {
     addRouteArg(target, propertyKey!, { index: parameterIndex, kind: "ctx" });
+  };
+}
+
+export function UseGuards(...guards: Function[]): MethodDecorator {
+  return (target, propertyKey) => {
+    const ctor = (target as any).constructor;
+    const method = propertyKey!.toString();
+
+    const existing = Reflect.getMetadata(META.guards, ctor) ?? {};
+    existing[method] = guards;
+
+    Reflect.defineMetadata(META.guards, existing, ctor);
   };
 }
